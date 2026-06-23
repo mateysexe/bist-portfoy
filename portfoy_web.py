@@ -32,8 +32,13 @@ def session_kaydet(session_id):
     """Yeni session_id'yi Supabase'e kaydet (zaten varsa sessizce geç)"""
     try:
         supabase.table("sessions").insert({"session_id": session_id}).execute()
-    except:
-        pass  # UNIQUE constraint — zaten kayıtlı, sorun değil
+    except Exception as e:
+        hata = str(e).lower()
+        if "duplicate" in hata or "unique" in hata:
+            pass  # Zaten kayıtlı, sorun değil
+        else:
+            st.error(f"Portföy kaydedilemedi: {e}")
+            st.stop()
 
 def session_var_mi(session_id):
     """Verilen kod Supabase'de kayıtlı mı?"""
@@ -135,7 +140,7 @@ with col3:
     yeni_maliyet = st.number_input("Maliyet", min_value=0.01, value=None, placeholder="Maliyet Fiyatı", label_visibility="collapsed")
 with col4:
     if st.button("➕ Ekle", use_container_width=True):
-        if yeni_sembol and yeni_lot and yeni_maliyet:
+        if yeni_sembol and yeni_lot is not None and yeni_maliyet is not None:
             hisse_ekle(session_id, yeni_sembol, int(yeni_lot), float(yeni_maliyet))
             st.success(f"{yeni_sembol.upper()} eklendi!")
             st.rerun()
@@ -212,16 +217,22 @@ else:
 
     st.divider()
 
-    st.subheader("📊 Portföy Dağılımı")
-    fig_pasta = px.pie(
-        values=[s["Güncel Değer (TL)"] for s in satirlar],
-        names=[s["Hisse"] for s in satirlar],
-        hole=0.4
-    )
-    fig_pasta.update_traces(textposition="inside", textinfo="percent+label")
-    st.plotly_chart(fig_pasta, use_container_width=True)
+    if satirlar:
+        st.subheader("📊 Portföy Dağılımı")
+        fig_pasta = px.pie(
+            values=[s["Güncel Değer (TL)"] for s in satirlar],
+            names=[s["Hisse"] for s in satirlar],
+            hole=0.4
+        )
+        fig_pasta.update_traces(textposition="inside", textinfo="percent+label")
+        st.plotly_chart(fig_pasta, use_container_width=True)
+    else:
+        st.warning("Fiyat verisi alınamadı, grafik gösterilemiyor.")
 
     st.divider()
+
+    if not satirlar:
+        st.stop()
 
     st.subheader("📈 Fiyat Geçmişi")
     secili = st.selectbox("Hisse seç", [s["Hisse"] for s in satirlar])
@@ -233,4 +244,3 @@ else:
             st.plotly_chart(fig_cizgi, use_container_width=True)
         else:
             st.warning("Grafik verisi alınamadı.")
-            
