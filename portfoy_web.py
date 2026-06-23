@@ -32,7 +32,7 @@ if st.sidebar.button("✅ Kodu Uygula"):
 
 if not st.session_state.session_id:
     import random, string
-    yeni_kod = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    yeni_kod = "PF" + ''.join(random.choices(string.digits, k=4))
     st.session_state.session_id = yeni_kod
     st.rerun()
 
