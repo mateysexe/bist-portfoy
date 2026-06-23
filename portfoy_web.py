@@ -133,7 +133,7 @@ if st.sidebar.button("🚪 Çıkış Yap / Kod Değiştir"):
 with st.sidebar.expander("🔧 Admin", expanded=False):
     admin_sifre = st.text_input("Şifre", type="password", key="admin_sifre")
     if st.sidebar.button("Giriş", key="admin_giris_btn"):
-        if admin_sifre == st.secrets.get("ADMIN_PASSWORD", ""):
+        if admin_sifre == st.secrets["ADMIN_PASSWORD"]:
             st.session_state.admin_aktif = True
         else:
             st.session_state.admin_aktif = False
