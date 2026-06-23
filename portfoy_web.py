@@ -75,7 +75,7 @@ if not st.session_state.kodu_gosterildi:
     with st.container(border=True):
         st.markdown("### 👋 Hoş Geldiniz")
 
-        sekme1, sekme2, sekme3 = st.tabs(["🆕 Yeni Portföy Oluştur", "🔑 Mevcut Portföyüme Gir", "🔧 Admin"])
+        sekme2, sekme1, sekme3 = st.tabs(["🔑 Mevcut Portföyüme Gir", "🆕 Yeni Portföy Oluştur", "🔧 Admin"])
 
         with sekme1:
             st.caption("Yeni bir portföy kodu oluşturulacak. Bu kodu saklayın — tekrar giriş için gerekecek.")
