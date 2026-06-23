@@ -87,6 +87,20 @@ def gecmis_cek(sembol):
 st.set_page_config(page_title="BIST Portföy Takip", page_icon="📈", layout="wide")
 st.title("📈 BIST Portföy Takip")
 
+if "kodu_gosterildi" not in st.session_state:
+    st.session_state.kodu_gosterildi = False
+
+if not st.session_state.kodu_gosterildi:
+    with st.container(border=True):
+        st.markdown("### 🔑 Portföy Kodunuz")
+        st.markdown("Aşağıdaki kod portföyünüze özel olarak oluşturulmuştur. Kaybetmemeniz için lütfen kopyalayın.")
+        st.code(session_id, language=None)
+        st.caption("Bu kodu bir sonraki girişinizde sol menüye girerek portföyünüze tekrar ulaşabilirsiniz. Dilerseniz kendi belirlediğiniz bir kod da kullanabilirsiniz.")
+        if st.button("✅ Anladım, Devam Et"):
+            st.session_state.kodu_gosterildi = True
+            st.rerun()
+    st.stop()
+
 # Hisse ekleme
 st.subheader("Hisse Ekle")
 col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
