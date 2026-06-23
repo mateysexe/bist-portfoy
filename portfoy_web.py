@@ -75,7 +75,7 @@ if not st.session_state.kodu_gosterildi:
     with st.container(border=True):
         st.markdown("### 👋 Hoş Geldiniz")
 
-        sekme1, sekme2 = st.tabs(["🆕 Yeni Portföy Oluştur", "🔑 Mevcut Portföyüme Gir"])
+        sekme1, sekme2, sekme3 = st.tabs(["🆕 Yeni Portföy Oluştur", "🔑 Mevcut Portföyüme Gir", "🔧 Admin"])
 
         with sekme1:
             st.caption("Yeni bir portföy kodu oluşturulacak. Bu kodu saklayın — tekrar giriş için gerekecek.")
@@ -93,7 +93,6 @@ if not st.session_state.kodu_gosterildi:
                         st.rerun()
                 else:
                     kod = "PF" + ''.join(random.choices(string.digits, k=4))
-                    # Çakışma ihtimaline karşı benzersiz kod üret
                     while session_var_mi(kod):
                         kod = "PF" + ''.join(random.choices(string.digits, k=4))
                     st.session_state.session_id = kod
@@ -115,6 +114,30 @@ if not st.session_state.kodu_gosterildi:
                     st.session_state.kodu_gosterildi = True
                     st.rerun()
 
+        with sekme3:
+            st.caption("Sadece yetkili kullanıcılar içindir.")
+            admin_sifre = st.text_input("Admin Şifresi", type="password", key="admin_sifre")
+            if st.button("🔐 Giriş", key="admin_giris_btn"):
+                if admin_sifre == st.secrets["ADMIN_PASSWORD"]:
+                    st.session_state.admin_aktif = True
+                    st.rerun()
+                else:
+                    st.error("Yanlış şifre.")
+
+            if st.session_state.get("admin_aktif"):
+                st.success("Giriş başarılı.")
+                try:
+                    tum_kodlar = supabase.table("sessions").select("session_id, created_at").order("created_at", desc=True).execute().data
+                    if tum_kodlar:
+                        st.markdown("**Kayıtlı Portföy Kodları:**")
+                        for k in tum_kodlar:
+                            tarih = k["created_at"][:10] if k.get("created_at") else "-"
+                            st.code(f"{k['session_id']}  ({tarih})", language=None)
+                    else:
+                        st.info("Henüz kayıtlı kod yok.")
+                except Exception as e:
+                    st.error(f"Veriler alınamadı: {e}")
+
     st.stop()
 
 session_id = st.session_state.session_id
@@ -128,29 +151,6 @@ if st.sidebar.button("🚪 Çıkış Yap / Kod Değiştir"):
     st.session_state.session_id = ""
     st.session_state.kodu_gosterildi = False
     st.rerun()
-
-# --- Admin Paneli ---
-with st.sidebar.expander("🔧 Admin", expanded=False):
-    admin_sifre = st.text_input("Şifre", type="password", key="admin_sifre")
-    if st.sidebar.button("Giriş", key="admin_giris_btn"):
-        if admin_sifre == st.secrets["ADMIN_PASSWORD"]:
-            st.session_state.admin_aktif = True
-        else:
-            st.session_state.admin_aktif = False
-            st.sidebar.error("Yanlış şifre.")
-
-if st.session_state.get("admin_aktif"):
-    with st.sidebar.expander("📋 Tüm Portföy Kodları", expanded=True):
-        try:
-            tum_kodlar = supabase.table("sessions").select("session_id, created_at").order("created_at", desc=True).execute().data
-            if tum_kodlar:
-                for k in tum_kodlar:
-                    tarih = k["created_at"][:10] if k.get("created_at") else "-"
-                    st.sidebar.code(f"{k['session_id']}  ({tarih})", language=None)
-            else:
-                st.sidebar.info("Henüz kayıtlı kod yok.")
-        except Exception as e:
-            st.sidebar.error(f"Veriler alınamadı: {e}")
 
 # --- Hisse ekleme ---
 st.subheader("Hisse Ekle")
