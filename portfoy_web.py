@@ -38,7 +38,8 @@ if not st.session_state.session_id:
 
 session_id = st.session_state.session_id
 st.sidebar.info(f"Kodun: **{session_id}**")
-st.sidebar.caption("Bu kodu not al — aynı portföye tekrar erişmek için gerekli.")
+st.sidebar.code(session_id)
+st.sidebar.caption("Bu kod portföyünüz için oluşturulmuş özel bir koddur. Dilerseniz bu kodu girişlerinizde kullanmak için kopyalayabilir ya da portföy oluşturmaya başlamadan önce kodunuzu kendiniz belirleyebilirsiniz.")
 
 def hisseleri_getir():
     conn = db_baglanti()
