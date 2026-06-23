@@ -90,7 +90,7 @@ st.title("📈 BIST Portföy Takip")
 st.subheader("Hisse Ekle")
 col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
 with col1:
-    yeni_sembol = st.text_input("Sembol", placeholder="ASTOR", label_visibility="collapsed")
+    yeni_sembol = st.text_input("Sembol", placeholder="Hisse Kodu (örn: THYAO)", label_visibility="collapsed")
 with col2:
     yeni_lot = st.number_input("Lot", min_value=1, value=1, label_visibility="collapsed")
 with col3:
