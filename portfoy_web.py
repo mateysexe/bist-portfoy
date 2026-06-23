@@ -132,14 +132,14 @@ if st.sidebar.button("🚪 Çıkış Yap / Kod Değiştir"):
 # --- Admin Paneli ---
 with st.sidebar.expander("🔧 Admin", expanded=False):
     admin_sifre = st.text_input("Şifre", type="password", key="admin_sifre")
-    if st.button("Giriş", key="admin_giris"):
+    if st.sidebar.button("Giriş", key="admin_giris_btn"):
         if admin_sifre == st.secrets.get("ADMIN_PASSWORD", ""):
-            st.session_state.admin_giris = True
+            st.session_state.admin_aktif = True
         else:
-            st.session_state.admin_giris = False
-            st.error("Yanlış şifre.")
+            st.session_state.admin_aktif = False
+            st.sidebar.error("Yanlış şifre.")
 
-if st.session_state.get("admin_giris"):
+if st.session_state.get("admin_aktif"):
     with st.sidebar.expander("📋 Tüm Portföy Kodları", expanded=True):
         try:
             tum_kodlar = supabase.table("sessions").select("session_id, created_at").order("created_at", desc=True).execute().data
