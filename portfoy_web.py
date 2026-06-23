@@ -129,6 +129,29 @@ if st.sidebar.button("🚪 Çıkış Yap / Kod Değiştir"):
     st.session_state.kodu_gosterildi = False
     st.rerun()
 
+# --- Admin Paneli ---
+with st.sidebar.expander("🔧 Admin", expanded=False):
+    admin_sifre = st.text_input("Şifre", type="password", key="admin_sifre")
+    if st.button("Giriş", key="admin_giris"):
+        if admin_sifre == st.secrets.get("ADMIN_PASSWORD", ""):
+            st.session_state.admin_giris = True
+        else:
+            st.session_state.admin_giris = False
+            st.error("Yanlış şifre.")
+
+if st.session_state.get("admin_giris"):
+    with st.sidebar.expander("📋 Tüm Portföy Kodları", expanded=True):
+        try:
+            tum_kodlar = supabase.table("sessions").select("session_id, created_at").order("created_at", desc=True).execute().data
+            if tum_kodlar:
+                for k in tum_kodlar:
+                    tarih = k["created_at"][:10] if k.get("created_at") else "-"
+                    st.sidebar.code(f"{k['session_id']}  ({tarih})", language=None)
+            else:
+                st.sidebar.info("Henüz kayıtlı kod yok.")
+        except Exception as e:
+            st.sidebar.error(f"Veriler alınamadı: {e}")
+
 # --- Hisse ekleme ---
 st.subheader("Hisse Ekle")
 col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
