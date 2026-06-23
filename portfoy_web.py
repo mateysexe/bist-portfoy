@@ -28,6 +28,18 @@ def hisse_ekle(session_id, sembol, lot, maliyet):
 def hisse_sil(hisse_id):
     supabase.table("portfoy").delete().eq("id", hisse_id).execute()
 
+def session_kaydet(session_id):
+    """Yeni session_id'yi Supabase'e kaydet (zaten varsa sessizce geç)"""
+    try:
+        supabase.table("sessions").insert({"session_id": session_id}).execute()
+    except:
+        pass  # UNIQUE constraint — zaten kayıtlı, sorun değil
+
+def session_var_mi(session_id):
+    """Verilen kod Supabase'de kayıtlı mı?"""
+    sonuc = supabase.table("sessions").select("session_id").eq("session_id", session_id).execute().data
+    return len(sonuc) > 0
+
 @st.cache_data(ttl=300)
 def fiyat_cek(sembol):
     try:
@@ -43,49 +55,76 @@ def gecmis_cek(sembol):
     except:
         return None
 
-# --- Session ID ---
+# --- Session State başlat ---
 if "session_id" not in st.session_state:
     st.session_state.session_id = ""
 if "kodu_gosterildi" not in st.session_state:
     st.session_state.kodu_gosterildi = False
 
-if not st.session_state.session_id:
-    yeni_kod = "PF" + ''.join(random.choices(string.digits, k=4))
-    st.session_state.session_id = yeni_kod
-
-session_id = st.session_state.session_id
-
 # --- Arayüz ---
 st.set_page_config(page_title="BIST Portföy Takip", page_icon="📈", layout="wide")
 st.title("📈 BIST Portföy Takip")
 
-# Karşılama ekranı
+# --- Karşılama ekranı ---
 if not st.session_state.kodu_gosterildi:
     with st.container(border=True):
-        st.markdown("### 🔑 Portföy Kodunuz")
-        st.caption("Bu kod portföyünüz için oluşturulmuş özel bir koddur. Dilerseniz bu kodu girişlerinizde kullanmak için kopyalayabilir ya da portföy oluşturmaya başlamadan önce kodunuzu kendiniz belirleyebilirsiniz.")
-        st.code(session_id, language=None)
-        yeni_kod_input = st.text_input("Kendi kodunuzu belirleyin (opsiyonel)", placeholder="Örn: PF1234", max_chars=10)
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            if st.button("✅ Anladım, Devam Et"):
+        st.markdown("### 👋 Hoş Geldiniz")
+
+        sekme1, sekme2 = st.tabs(["🆕 Yeni Portföy Oluştur", "🔑 Mevcut Portföyüme Gir"])
+
+        with sekme1:
+            st.caption("Yeni bir portföy kodu oluşturulacak. Bu kodu saklayın — tekrar giriş için gerekecek.")
+            yeni_kod_input = st.text_input("Kendi kodunuzu belirleyin (opsiyonel)", placeholder="Örn: PF1234", max_chars=10, key="yeni_kod")
+
+            if st.button("✅ Yeni Portföy Oluştur"):
                 if yeni_kod_input.strip():
-                    st.session_state.session_id = yeni_kod_input.strip().upper()
-                st.session_state.kodu_gosterildi = True
-                st.rerun()
+                    kod = yeni_kod_input.strip().upper()
+                    if session_var_mi(kod):
+                        st.error("Bu kod zaten kullanımda. Farklı bir kod deneyin veya mevcut portföyünüze giriş yapın.")
+                    else:
+                        st.session_state.session_id = kod
+                        session_kaydet(kod)
+                        st.session_state.kodu_gosterildi = True
+                        st.rerun()
+                else:
+                    kod = "PF" + ''.join(random.choices(string.digits, k=4))
+                    # Çakışma ihtimaline karşı benzersiz kod üret
+                    while session_var_mi(kod):
+                        kod = "PF" + ''.join(random.choices(string.digits, k=4))
+                    st.session_state.session_id = kod
+                    session_kaydet(kod)
+                    st.session_state.kodu_gosterildi = True
+                    st.rerun()
+
+        with sekme2:
+            st.caption("Daha önce oluşturduğunuz portföy kodunu girin.")
+            mevcut_kod = st.text_input("Portföy Kodunuz", placeholder="Örn: PF1234", max_chars=10, key="mevcut_kod")
+
+            if st.button("🔓 Portföyüme Gir"):
+                if not mevcut_kod.strip():
+                    st.error("Lütfen bir kod girin.")
+                elif not session_var_mi(mevcut_kod.strip().upper()):
+                    st.error("Bu kod bulunamadı. Kodu kontrol edin ya da yeni portföy oluşturun.")
+                else:
+                    st.session_state.session_id = mevcut_kod.strip().upper()
+                    st.session_state.kodu_gosterildi = True
+                    st.rerun()
+
     st.stop()
 
-# Sidebar
-st.sidebar.title("🔑 Portföy Kodu")
-kod_girisi = st.sidebar.text_input("Kodunu gir", value=st.session_state.session_id, max_chars=10).strip().upper()
-if st.sidebar.button("✅ Kodu Uygula"):
-    st.session_state.session_id = kod_girisi
-    session_id = kod_girisi
-    st.rerun()
-st.sidebar.code(session_id)
-st.sidebar.caption("Bu kod portföyünüz için oluşturulmuş özel bir koddur. Dilerseniz bu kodu girişlerinizde kullanmak için kopyalayabilir ya da portföy oluşturmaya başlamadan önce kodunuzu kendiniz belirleyebilirsiniz.")
+session_id = st.session_state.session_id
 
-# Hisse ekleme
+# --- Sidebar ---
+st.sidebar.title("🔑 Portföy Kodu")
+st.sidebar.code(session_id)
+st.sidebar.caption("Bu kodu saklayın. Tekrar giriş için gerekecek.")
+
+if st.sidebar.button("🚪 Çıkış Yap / Kod Değiştir"):
+    st.session_state.session_id = ""
+    st.session_state.kodu_gosterildi = False
+    st.rerun()
+
+# --- Hisse ekleme ---
 st.subheader("Hisse Ekle")
 col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
 with col1:
@@ -194,3 +233,4 @@ else:
             st.plotly_chart(fig_cizgi, use_container_width=True)
         else:
             st.warning("Grafik verisi alınamadı.")
+            
