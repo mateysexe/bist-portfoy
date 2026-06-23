@@ -92,9 +92,9 @@ col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
 with col1:
     yeni_sembol = st.text_input("Sembol", placeholder="Hisse Kodu (örn: THYAO)", label_visibility="collapsed")
 with col2:
-    yeni_lot = st.number_input("Lot", min_value=1, value=1, label_visibility="collapsed")
+    yeni_lot = st.number_input("Lot Sayısı", min_value=1, value=None, placeholder="Lot Sayısı", label_visibility="collapsed")
 with col3:
-    yeni_maliyet = st.number_input("Maliyet (TL)", min_value=0.01, value=1.00, label_visibility="collapsed")
+    yeni_maliyet = st.number_input("Maliyet Fiyatı (TL)", min_value=0.01, value=None, placeholder="Maliyet Fiyatı", label_visibility="collapsed")
 with col4:
     if st.button("➕ Ekle", use_container_width=True):
         if yeni_sembol:
