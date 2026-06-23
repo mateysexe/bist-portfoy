@@ -1,72 +1,32 @@
 import streamlit as st
 import yfinance as yf
-import sqlite3
-import uuid
 import plotly.express as px
+import random
+import string
+from supabase import create_client
 
-# --- Veritabanı ---
-def db_baglanti():
-    conn = sqlite3.connect("portfoy.db")
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS portfoy (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            sembol TEXT,
-            lot INTEGER,
-            maliyet REAL
-        )
-    """)
-    conn.commit()
-    return conn
+# --- Supabase bağlantısı ---
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.sidebar.title("🔑 Portföy Kodu")
+# --- Yardımcı fonksiyonlar ---
+def hisseleri_getir(session_id):
+    return supabase.table("portfoy").select("*").eq("session_id", session_id).execute().data
 
-if "session_id" not in st.session_state:
-    st.session_state.session_id = ""
-
-kod_girisi = st.sidebar.text_input("Kodunu gir", value=st.session_state.session_id, max_chars=6).strip().upper()
-
-if st.sidebar.button("✅ Kodu Uygula"):
-    st.session_state.session_id = kod_girisi
-    st.rerun()
-
-if not st.session_state.session_id:
-    import random, string
-    yeni_kod = "PF" + ''.join(random.choices(string.digits, k=4))
-    st.session_state.session_id = yeni_kod
-    st.rerun()
-
-session_id = st.session_state.session_id
-st.sidebar.info(f"Kodun: **{session_id}**")
-st.sidebar.code(session_id)
-st.sidebar.caption("Bu kod portföyünüz için oluşturulmuş özel bir koddur. Dilerseniz bu kodu girişlerinizde kullanmak için kopyalayabilir ya da portföy oluşturmaya başlamadan önce kodunuzu kendiniz belirleyebilirsiniz. (6 karakterle sınırlıdır.)")
-
-def hisseleri_getir():
-    conn = db_baglanti()
-    rows = conn.execute(
-        "SELECT id, sembol, lot, maliyet FROM portfoy WHERE session_id=?",
-        (session_id,)
-    ).fetchall()
-    conn.close()
-    return rows
-
-def hisse_ekle(sembol, lot, maliyet):
+def hisse_ekle(session_id, sembol, lot, maliyet):
     s = sembol.upper()
     if not s.endswith(".IS"):
         s += ".IS"
-    conn = db_baglanti()
-    conn.execute(
-        "INSERT INTO portfoy (session_id, sembol, lot, maliyet) VALUES (?,?,?,?)",
-        (session_id, s, lot, maliyet)
-    )
-    conn.commit()
-    conn.close()
+    supabase.table("portfoy").insert({
+        "session_id": session_id,
+        "sembol": s,
+        "lot": lot,
+        "maliyet": maliyet
+    }).execute()
 
 def hisse_sil(hisse_id):
-    conn = db_baglanti()
-    conn.execute("DELETE FROM portfoy WHERE id=? AND session_id=?", (hisse_id, session_id))
-    conn.commit()
-    conn.close()
+    supabase.table("portfoy").delete().eq("id", hisse_id).execute()
 
 @st.cache_data(ttl=300)
 def fiyat_cek(sembol):
@@ -83,13 +43,23 @@ def gecmis_cek(sembol):
     except:
         return None
 
+# --- Session ID ---
+if "session_id" not in st.session_state:
+    st.session_state.session_id = ""
+if "kodu_gosterildi" not in st.session_state:
+    st.session_state.kodu_gosterildi = False
+
+if not st.session_state.session_id:
+    yeni_kod = "PF" + ''.join(random.choices(string.digits, k=4))
+    st.session_state.session_id = yeni_kod
+
+session_id = st.session_state.session_id
+
 # --- Arayüz ---
 st.set_page_config(page_title="BIST Portföy Takip", page_icon="📈", layout="wide")
 st.title("📈 BIST Portföy Takip")
 
-if "kodu_gosterildi" not in st.session_state:
-    st.session_state.kodu_gosterildi = False
-
+# Karşılama ekranı
 if not st.session_state.kodu_gosterildi:
     with st.container(border=True):
         st.markdown("### 🔑 Portföy Kodunuz")
@@ -105,25 +75,35 @@ if not st.session_state.kodu_gosterildi:
                 st.rerun()
     st.stop()
 
+# Sidebar
+st.sidebar.title("🔑 Portföy Kodu")
+kod_girisi = st.sidebar.text_input("Kodunu gir", value=st.session_state.session_id, max_chars=10).strip().upper()
+if st.sidebar.button("✅ Kodu Uygula"):
+    st.session_state.session_id = kod_girisi
+    session_id = kod_girisi
+    st.rerun()
+st.sidebar.code(session_id)
+st.sidebar.caption("Bu kod portföyünüz için oluşturulmuş özel bir koddur. Dilerseniz bu kodu girişlerinizde kullanmak için kopyalayabilir ya da portföy oluşturmaya başlamadan önce kodunuzu kendiniz belirleyebilirsiniz.")
+
 # Hisse ekleme
 st.subheader("Hisse Ekle")
 col1, col2, col3, col4 = st.columns([2, 1, 2, 1])
 with col1:
-    yeni_sembol = st.text_input("Sembol", placeholder="Hisse Kodu (örn: THYAO)", label_visibility="collapsed")
+    yeni_sembol = st.text_input("Sembol", placeholder="Hisse Kodu (örn: ASTOR)", label_visibility="collapsed")
 with col2:
-    yeni_lot = st.number_input("Lot Sayısı", min_value=1, value=None, placeholder="Lot Sayısı", label_visibility="collapsed")
+    yeni_lot = st.number_input("Lot", min_value=1, value=None, placeholder="Lot Sayısı", label_visibility="collapsed")
 with col3:
-    yeni_maliyet = st.number_input("Maliyet Fiyatı (TL)", min_value=0.01, value=None, placeholder="Maliyet Fiyatı", label_visibility="collapsed")
+    yeni_maliyet = st.number_input("Maliyet", min_value=0.01, value=None, placeholder="Maliyet Fiyatı", label_visibility="collapsed")
 with col4:
     if st.button("➕ Ekle", use_container_width=True):
-        if yeni_sembol:
-            hisse_ekle(yeni_sembol, yeni_lot, yeni_maliyet)
+        if yeni_sembol and yeni_lot and yeni_maliyet:
+            hisse_ekle(session_id, yeni_sembol, int(yeni_lot), float(yeni_maliyet))
             st.success(f"{yeni_sembol.upper()} eklendi!")
             st.rerun()
 
 st.divider()
 
-hisseler = hisseleri_getir()
+hisseler = hisseleri_getir(session_id)
 
 if not hisseler:
     st.info("Henüz hisse eklenmedi. Yukarıdan ekleyebilirsin.")
@@ -136,22 +116,22 @@ else:
     toplam_maliyet = 0
     toplam_deger = 0
 
-    for hisse_id, sembol, lot, maliyet in hisseler:
-        fiyat, onceki = fiyat_cek(sembol)
+    for h in hisseler:
+        fiyat, onceki = fiyat_cek(h["sembol"])
         if fiyat is None:
             continue
-        mt = lot * maliyet
-        gd = lot * fiyat
+        mt = h["lot"] * h["maliyet"]
+        gd = h["lot"] * fiyat
         kz = gd - mt
         kz_yuzde = (kz / mt) * 100
         gunluk = ((fiyat - onceki) / onceki) * 100 if onceki else 0
         toplam_maliyet += mt
         toplam_deger += gd
         satirlar.append({
-            "id": hisse_id,
-            "Hisse": sembol.replace(".IS", ""),
-            "Lot": lot,
-            "Maliyet (TL)": maliyet,
+            "id": h["id"],
+            "Hisse": h["sembol"].replace(".IS", ""),
+            "Lot": h["lot"],
+            "Maliyet (TL)": h["maliyet"],
             "Güncel Fiyat": fiyat,
             "Günlük %": gunluk,
             "Kar/Zarar %": kz_yuzde,
@@ -162,16 +142,14 @@ else:
     toplam_kz = toplam_deger - toplam_maliyet
     toplam_kz_yuzde = (toplam_kz / toplam_maliyet) * 100 if toplam_maliyet else 0
 
-    # Özet kartlar
     k1, k2, k3 = st.columns(3)
     k1.metric("💰 Toplam Maliyet", f"{toplam_maliyet:,.0f} TL")
     k2.metric("📊 Güncel Değer", f"{toplam_deger:,.0f} TL")
     k3.metric("📈 Kar / Zarar", f"{toplam_kz:+,.0f} TL", f"%{toplam_kz_yuzde:+.2f}")
 
     st.divider()
-
-    # Tablo - sütun başlıklarıyla
     st.subheader("Pozisyonlar")
+
     basliklar = st.columns([2, 1, 1.5, 1.5, 1.2, 1.2, 1.8, 2, 1])
     for b, ad in zip(basliklar, ["Hisse", "Lot", "Maliyet (TL)", "Güncel Fiyat", "Günlük %", "Kar/Zarar %", "Kar/Zarar TL", "Güncel Değer", ""]):
         b.markdown(f"**{ad}**")
@@ -195,7 +173,6 @@ else:
 
     st.divider()
 
-    # Pasta grafik
     st.subheader("📊 Portföy Dağılımı")
     fig_pasta = px.pie(
         values=[s["Güncel Değer (TL)"] for s in satirlar],
@@ -207,7 +184,6 @@ else:
 
     st.divider()
 
-    # Fiyat geçmişi grafiği
     st.subheader("📈 Fiyat Geçmişi")
     secili = st.selectbox("Hisse seç", [s["Hisse"] for s in satirlar])
     if secili:
