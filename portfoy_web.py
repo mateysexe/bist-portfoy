@@ -93,12 +93,16 @@ if "kodu_gosterildi" not in st.session_state:
 if not st.session_state.kodu_gosterildi:
     with st.container(border=True):
         st.markdown("### 🔑 Portföy Kodunuz")
-        st.markdown("Aşağıdaki kod portföyünüze özel olarak oluşturulmuştur. Kaybetmemeniz için lütfen kopyalayın.")
+        st.caption("Bu kod portföyünüz için oluşturulmuş özel bir koddur. Dilerseniz bu kodu girişlerinizde kullanmak için kopyalayabilir ya da portföy oluşturmaya başlamadan önce kodunuzu kendiniz belirleyebilirsiniz.")
         st.code(session_id, language=None)
-        st.caption("Bu kodu bir sonraki girişinizde sol menüye girerek portföyünüze tekrar ulaşabilirsiniz. Dilerseniz kendi belirlediğiniz bir kod da kullanabilirsiniz.")
-        if st.button("✅ Anladım, Devam Et"):
-            st.session_state.kodu_gosterildi = True
-            st.rerun()
+        yeni_kod_input = st.text_input("Kendi kodunuzu belirleyin (opsiyonel)", placeholder="Örn: PF1234", max_chars=10)
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if st.button("✅ Anladım, Devam Et"):
+                if yeni_kod_input.strip():
+                    st.session_state.session_id = yeni_kod_input.strip().upper()
+                st.session_state.kodu_gosterildi = True
+                st.rerun()
     st.stop()
 
 # Hisse ekleme
